@@ -1,0 +1,601 @@
+-- ============================================================
+-- E-COMMERCE DATABASE SYSTEM 
+-- Group 10 | University Database Systems Project
+
+
+USE master;
+GO
+
+-- Drop if exists and recreate
+IF EXISTS (SELECT name FROM sys.databases WHERE name = 'ECommerceDB')
+    DROP DATABASE ECommerceDB;
+GO
+
+CREATE DATABASE ECommerceDB;
+GO
+
+USE ECommerceDB;
+GO
+
+-- ============================================================
+-- TABLE 1: Categories
+-- ============================================================
+CREATE TABLE Categories (
+    CategoryID   INT IDENTITY(1,1) PRIMARY KEY,
+    CategoryName NVARCHAR(100) NOT NULL,
+    Description  NVARCHAR(500),
+    ImageURL     NVARCHAR(300),
+    IsActive     BIT DEFAULT 1,
+    CreatedAt    DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- ============================================================
+-- TABLE 2: Suppliers
+-- ============================================================
+CREATE TABLE Suppliers (
+    SupplierID   INT IDENTITY(1,1) PRIMARY KEY,
+    SupplierName NVARCHAR(150) NOT NULL,
+    ContactEmail NVARCHAR(150),
+    Phone        NVARCHAR(20),
+    Address      NVARCHAR(300),
+    Country      NVARCHAR(100),
+    CreatedAt    DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- ============================================================
+-- TABLE 3: Products
+-- ============================================================
+CREATE TABLE Products (
+    ProductID    INT IDENTITY(1,1) PRIMARY KEY,
+    CategoryID   INT NOT NULL,
+    SupplierID   INT,
+    ProductName  NVARCHAR(200) NOT NULL,
+    Description  NVARCHAR(1000),
+    Price        DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
+    DiscountPct  DECIMAL(5,2) DEFAULT 0 CHECK (DiscountPct BETWEEN 0 AND 100),
+    ImageURL     NVARCHAR(300),
+    Brand        NVARCHAR(100),
+    IsActive     BIT DEFAULT 1,
+    CreatedAt    DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_Products_Category FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID),
+    CONSTRAINT FK_Products_Supplier FOREIGN KEY (SupplierID) REFERENCES Suppliers(SupplierID)
+);
+GO
+
+-- ============================================================
+-- TABLE 4: Inventory
+-- ============================================================
+CREATE TABLE Inventory (
+    InventoryID       INT IDENTITY(1,1) PRIMARY KEY,
+    ProductID         INT NOT NULL,
+    StockQuantity     INT NOT NULL DEFAULT 0 CHECK (StockQuantity >= 0),
+    ReorderLevel      INT DEFAULT 10,
+    LastRestocked     DATETIME,
+    WarehouseLocation NVARCHAR(100),
+    CONSTRAINT FK_Inventory_Product FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+);
+GO
+
+-- ============================================================
+-- TABLE 5: Customers
+-- ============================================================
+CREATE TABLE Customers (
+    CustomerID   INT IDENTITY(1,1) PRIMARY KEY,
+    FirstName    NVARCHAR(100) NOT NULL,
+    LastName     NVARCHAR(100) NOT NULL,
+    Email        NVARCHAR(150) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    Phone        NVARCHAR(20),
+    Address      NVARCHAR(300),
+    City         NVARCHAR(100),
+    Country      NVARCHAR(100) DEFAULT 'Pakistan',
+    IsActive     BIT DEFAULT 1,
+    CreatedAt    DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- ============================================================
+-- TABLE 6: Admin
+-- ============================================================
+CREATE TABLE Admin (
+    AdminID      INT IDENTITY(1,1) PRIMARY KEY,
+    Username     NVARCHAR(100) NOT NULL UNIQUE,
+    Email        NVARCHAR(150) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    Role         NVARCHAR(50) DEFAULT 'admin',
+    CreatedAt    DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- ============================================================
+-- TABLE 7: Orders
+-- ============================================================
+CREATE TABLE Orders (
+    OrderID      INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerID   INT NOT NULL,
+    OrderDate    DATETIME DEFAULT GETDATE(),
+    TotalAmount  DECIMAL(10,2) NOT NULL,
+    ShippingAddr NVARCHAR(300),
+    OrderStatus  NVARCHAR(50) DEFAULT 'Pending'
+                 CHECK (OrderStatus IN ('Pending','Processing','Shipped','Delivered','Cancelled')),
+    TrackingNo   NVARCHAR(100),
+    Notes        NVARCHAR(500),
+    CONSTRAINT FK_Orders_Customer FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
+);
+GO
+
+-- ============================================================
+-- TABLE 8: OrderDetails
+-- ============================================================
+CREATE TABLE OrderDetails (
+    OrderDetailID INT IDENTITY(1,1) PRIMARY KEY,
+    OrderID       INT NOT NULL,
+    ProductID     INT NOT NULL,
+    Quantity      INT NOT NULL CHECK (Quantity > 0),
+    UnitPrice     DECIMAL(10,2) NOT NULL,
+    Discount      DECIMAL(5,2) DEFAULT 0,
+    CONSTRAINT FK_OD_Order   FOREIGN KEY (OrderID)   REFERENCES Orders(OrderID),
+    CONSTRAINT FK_OD_Product FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+);
+GO
+
+-- ============================================================
+-- TABLE 9: Cart
+-- ============================================================
+CREATE TABLE Cart (
+    CartID     INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID  INT NOT NULL,
+    Quantity   INT NOT NULL DEFAULT 1 CHECK (Quantity > 0),
+    AddedAt    DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_Cart_Customer FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
+    CONSTRAINT FK_Cart_Product  FOREIGN KEY (ProductID)  REFERENCES Products(ProductID)
+);
+GO
+
+-- ============================================================
+-- TABLE 10: Payments
+-- ============================================================
+CREATE TABLE Payments (
+    PaymentID      INT IDENTITY(1,1) PRIMARY KEY,
+    OrderID        INT NOT NULL,
+    PaymentDate    DATETIME DEFAULT GETDATE(),
+    Amount         DECIMAL(10,2) NOT NULL,
+    Method         NVARCHAR(50) CHECK (Method IN ('Cash','Credit Card','Debit Card','JazzCash','EasyPaisa','Bank Transfer')),
+    Status         NVARCHAR(50) DEFAULT 'Pending' CHECK (Status IN ('Pending','Completed','Failed','Refunded')),
+    TransactionRef NVARCHAR(150),
+    CONSTRAINT FK_Payments_Order FOREIGN KEY (OrderID) REFERENCES Orders(OrderID)
+);
+GO
+
+-- ============================================================
+-- TABLE 11: Reviews
+-- ============================================================
+CREATE TABLE Reviews (
+    ReviewID   INT IDENTITY(1,1) PRIMARY KEY,
+    ProductID  INT NOT NULL,
+    CustomerID INT NOT NULL,
+    Rating     INT CHECK (Rating BETWEEN 1 AND 5),
+    ReviewText NVARCHAR(1000),
+    ReviewDate DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_Reviews_Product  FOREIGN KEY (ProductID)  REFERENCES Products(ProductID),
+    CONSTRAINT FK_Reviews_Customer FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
+);
+GO
+
+-- ============================================================
+-- TABLE 12: Wishlist
+-- ============================================================
+CREATE TABLE Wishlist (
+    WishlistID INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID  INT NOT NULL,
+    AddedAt    DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_Wishlist_Customer FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
+    CONSTRAINT FK_Wishlist_Product  FOREIGN KEY (ProductID)  REFERENCES Products(ProductID)
+);
+GO
+
+-- ============================================================
+-- TABLE 13: InventoryLog (Audit Trail)
+-- ============================================================
+CREATE TABLE InventoryLog (
+    LogID      INT IDENTITY(1,1) PRIMARY KEY,
+    ProductID  INT,
+    OldQty     INT,
+    NewQty     INT,
+    ChangedAt  DATETIME DEFAULT GETDATE(),
+    ChangedBy  NVARCHAR(100) DEFAULT SYSTEM_USER
+);
+GO
+
+-- ============================================================
+-- SAMPLE DATA
+-- ============================================================
+
+-- Categories
+INSERT INTO Categories (CategoryName, Description, ImageURL) VALUES
+('Electronics',     'Mobiles, Laptops, Gadgets',     'images/cat_electronics.jpg'),
+('Clothing',        'Men, Women, Kids Fashion',       'images/cat_clothing.jpg'),
+('Home & Kitchen',  'Appliances and Furniture',       'images/cat_home.jpg'),
+('Books',           'Academic, Fiction, Non-Fiction', 'images/cat_books.jpg'),
+('Sports',          'Fitness, Outdoor, Sports Gear',  'images/cat_sports.jpg');
+GO
+
+-- Suppliers
+INSERT INTO Suppliers (SupplierName, ContactEmail, Phone, Address, Country) VALUES
+('TechImports Co.',  'tech@imports.pk',    '0300-1234567', 'Lahore Industrial Area',  'Pakistan'),
+('Fashion Hub Ltd.', 'info@fashionhub.pk', '0321-7654321', 'Karachi Garment Zone',    'Pakistan'),
+('Global Traders',   'global@trade.com',   '0333-9876543', 'Islamabad Blue Area',     'Pakistan'),
+('Book World PK',    'books@world.pk',     '0345-1112233', 'Rawalpindi Saddar',       'Pakistan');
+GO
+
+-- Products
+INSERT INTO Products (CategoryID, SupplierID, ProductName, Description, Price, DiscountPct, Brand) VALUES
+(1, 1, 'Samsung Galaxy A55',    '6.6" Super AMOLED, 128GB, 5G',          79999,  5,  'Samsung'),
+(1, 1, 'Laptop HP Pavilion 15', 'Intel i5, 8GB RAM, 512GB SSD, Win11',   119999, 10, 'HP'),
+(1, 1, 'Sony WH-1000XM5',       'Noise Cancelling Wireless Headphones',   49999,  15, 'Sony'),
+(1, 1, 'Apple iPad 10th Gen',   '10.9" Retina, 64GB, Wi-Fi',             139999, 0,  'Apple'),
+(2, 2, 'Men Casual Shirt',      'Premium cotton casual shirt, all sizes',   2499, 20, 'AlKaram'),
+(2, 2, 'Women Lawn Dress',      '3-piece embroidered lawn suit',            3999, 10, 'Gul Ahmed'),
+(2, 2, 'Kids Denim Jacket',     'Trendy denim jacket for kids 5-12 yrs',   1899, 0,  'Outfitters'),
+(3, 3, 'Dawlance Refrigerator', '14 Cu.Ft Frost Free Double Door',         89999, 5,  'Dawlance'),
+(3, 3, 'Haier Air Conditioner', '1.5 Ton Inverter AC Energy Saver',       105000, 8,  'Haier'),
+(4, 4, 'Database Systems Book', 'Silberschatz - 7th Edition',               3500, 0,  'McGraw-Hill'),
+(5, 3, 'Dumbbell Set 20kg',     'Adjustable rubber coated dumbbell set',    8999, 12, 'PowerFit');
+GO
+
+-- Inventory
+INSERT INTO Inventory (ProductID, StockQuantity, ReorderLevel, WarehouseLocation) VALUES
+(1,  50,  5,  'Rack A1'),
+(2,  30,  3,  'Rack A2'),
+(3,  80,  10, 'Rack A3'),
+(4,  20,  3,  'Rack A4'),
+(5,  200, 20, 'Rack B1'),
+(6,  150, 15, 'Rack B2'),
+(7,  100, 10, 'Rack B3'),
+(8,  15,  2,  'Rack C1'),
+(9,  12,  2,  'Rack C2'),
+(10, 300, 30, 'Rack D1'),
+(11, 60,  5,  'Rack E1');
+GO
+
+-- Customers (password = 'pass123' hashed with bcrypt)
+INSERT INTO Customers (FirstName, LastName, Email, PasswordHash, Phone, Address, City) VALUES
+('Ali',    'Hassan',    'ali@email.com',    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0300-1111111', 'Street 5, F-10',    'Islamabad'),
+('Sara',   'Khan',      'sara@email.com',   '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0321-2222222', 'Block C, DHA',      'Lahore'),
+('Ahmed',  'Raza',      'ahmed@email.com',  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0333-3333333', 'Gulshan-e-Iqbal',  'Karachi'),
+('Fatima', 'Malik',     'fatima@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0345-4444444', 'Saddar Area',       'Rawalpindi'),
+('Usman',  'Siddiqui',  'usman@email.com',  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0311-5555555', 'Hayatabad Phase 3', 'Peshawar');
+GO
+
+-- Admin
+INSERT INTO Admin (Username, Email, PasswordHash, Role) VALUES
+('superadmin', 'admin@ecommerce.pk', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'superadmin');
+GO
+
+-- Orders
+INSERT INTO Orders (CustomerID, TotalAmount, ShippingAddr, OrderStatus, TrackingNo) VALUES
+(1, 79999,  'Street 5, F-10, Islamabad', 'Delivered',  'TRK-001-2024'),
+(2, 122498, 'Block C, DHA, Lahore',      'Shipped',    'TRK-002-2024'),
+(3, 3500,   'Gulshan-e-Iqbal, Karachi',  'Processing', 'TRK-003-2024'),
+(4, 13997,  'Saddar, Rawalpindi',         'Pending',    NULL),
+(1, 49999,  'Street 5, F-10, Islamabad', 'Delivered',  'TRK-005-2024');
+GO
+
+-- OrderDetails
+INSERT INTO OrderDetails (OrderID, ProductID, Quantity, UnitPrice, Discount) VALUES
+(1, 1,  1, 79999,  5),
+(2, 2,  1, 119999, 10),
+(2, 5,  1, 2499,   20),
+(3, 10, 1, 3500,   0),
+(4, 7,  2, 1899,   0),
+(4, 10, 3, 3500,   0),
+(5, 3,  1, 49999,  15);
+GO
+
+-- Payments
+INSERT INTO Payments (OrderID, Amount, Method, Status, TransactionRef) VALUES
+(1, 79999,  'JazzCash',      'Completed', 'JC-2024-001'),
+(2, 122498, 'Credit Card',   'Completed', 'CC-2024-002'),
+(3, 3500,   'EasyPaisa',     'Completed', 'EP-2024-003'),
+(4, 13997,  'Cash',          'Pending',   NULL),
+(5, 49999,  'Bank Transfer', 'Completed', 'BT-2024-005');
+GO
+
+-- Reviews
+INSERT INTO Reviews (ProductID, CustomerID, Rating, ReviewText) VALUES
+(1,  1, 5, 'Amazing phone! Great camera and battery life.'),
+(2,  2, 4, 'Good laptop, runs smoothly. Slightly expensive.'),
+(3,  1, 5, 'Best headphones I have ever used. Worth every penny.'),
+(10, 3, 5, 'Essential textbook for database course. Highly recommend.');
+GO
+
+-- ============================================================
+-- VIEWS
+-- ============================================================
+
+CREATE VIEW vw_ProductDetails AS
+SELECT
+    p.ProductID,
+    p.ProductName,
+    p.Price,
+    p.DiscountPct,
+    CAST(p.Price - (p.Price * p.DiscountPct / 100) AS DECIMAL(10,2)) AS FinalPrice,
+    p.Brand,
+    c.CategoryName,
+    i.StockQuantity,
+    CASE WHEN i.StockQuantity > 0 THEN 'In Stock' ELSE 'Out of Stock' END AS StockStatus,
+    p.ImageURL
+FROM Products p
+JOIN Categories c  ON p.CategoryID  = c.CategoryID
+JOIN Inventory  i  ON p.ProductID   = i.ProductID
+WHERE p.IsActive = 1;
+GO
+
+CREATE VIEW vw_OrderSummary AS
+SELECT
+    o.OrderID,
+    c.FirstName + ' ' + c.LastName AS CustomerName,
+    c.Email,
+    o.OrderDate,
+    o.TotalAmount,
+    o.OrderStatus,
+    o.TrackingNo,
+    p.Method AS PaymentMethod,
+    p.Status AS PaymentStatus
+FROM Orders o
+JOIN Customers c ON o.CustomerID = c.CustomerID
+LEFT JOIN Payments p ON o.OrderID = p.OrderID;
+GO
+
+CREATE VIEW vw_SalesByCategory AS
+SELECT
+    cat.CategoryName,
+    COUNT(DISTINCT o.OrderID)        AS TotalOrders,
+    SUM(od.Quantity)                 AS TotalUnitsSold,
+    SUM(od.Quantity * od.UnitPrice)  AS TotalRevenue
+FROM OrderDetails od
+JOIN Orders     o   ON od.OrderID   = o.OrderID
+JOIN Products   p   ON od.ProductID = p.ProductID
+JOIN Categories cat ON p.CategoryID = cat.CategoryID
+WHERE o.OrderStatus <> 'Cancelled'
+GROUP BY cat.CategoryName;
+GO
+
+CREATE VIEW vw_CustomerOrders AS
+SELECT
+    c.CustomerID,
+    c.FirstName + ' ' + c.LastName AS CustomerName,
+    c.Email,
+    COUNT(o.OrderID)   AS TotalOrders,
+    SUM(o.TotalAmount) AS TotalSpent,
+    MAX(o.OrderDate)   AS LastOrderDate
+FROM Customers c
+LEFT JOIN Orders o ON c.CustomerID = o.CustomerID
+GROUP BY c.CustomerID, c.FirstName, c.LastName, c.Email;
+GO
+
+CREATE VIEW vw_LowStock AS
+SELECT
+    p.ProductID,
+    p.ProductName,
+    i.StockQuantity,
+    i.ReorderLevel,
+    s.SupplierName,
+    s.ContactEmail
+FROM Inventory i
+JOIN Products  p ON i.ProductID  = p.ProductID
+JOIN Suppliers s ON p.SupplierID = s.SupplierID
+WHERE i.StockQuantity <= i.ReorderLevel;
+GO
+
+-- ============================================================
+-- STORED PROCEDURES
+-- ============================================================
+
+CREATE PROCEDURE sp_GetProducts
+    @CategoryID INT = NULL
+AS
+BEGIN
+    SELECT * FROM vw_ProductDetails
+    WHERE (@CategoryID IS NULL OR CategoryID = @CategoryID)
+    ORDER BY ProductName;
+END;
+GO
+
+CREATE PROCEDURE sp_SearchProducts
+    @SearchTerm NVARCHAR(200)
+AS
+BEGIN
+    SELECT * FROM vw_ProductDetails
+    WHERE ProductName LIKE '%' + @SearchTerm + '%'
+    ORDER BY ProductName;
+END;
+GO
+
+CREATE PROCEDURE sp_AddToCart
+    @CustomerID INT,
+    @ProductID  INT,
+    @Quantity   INT
+AS
+BEGIN
+    IF EXISTS (SELECT 1 FROM Cart WHERE CustomerID = @CustomerID AND ProductID = @ProductID)
+        UPDATE Cart SET Quantity = Quantity + @Quantity
+        WHERE CustomerID = @CustomerID AND ProductID = @ProductID;
+    ELSE
+        INSERT INTO Cart (CustomerID, ProductID, Quantity)
+        VALUES (@CustomerID, @ProductID, @Quantity);
+END;
+GO
+
+CREATE PROCEDURE sp_PlaceOrder
+    @CustomerID    INT,
+    @ShippingAddr  NVARCHAR(300),
+    @PaymentMethod NVARCHAR(50),
+    @OrderID       INT OUTPUT
+AS
+BEGIN
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DECLARE @Total DECIMAL(10,2);
+
+        SELECT @Total = SUM(p.Price * c.Quantity * (1 - p.DiscountPct / 100))
+        FROM Cart c
+        JOIN Products p ON c.ProductID = p.ProductID
+        WHERE c.CustomerID = @CustomerID;
+
+        INSERT INTO Orders (CustomerID, TotalAmount, ShippingAddr, OrderStatus)
+        VALUES (@CustomerID, @Total, @ShippingAddr, 'Pending');
+
+        SET @OrderID = SCOPE_IDENTITY();
+
+        INSERT INTO OrderDetails (OrderID, ProductID, Quantity, UnitPrice, Discount)
+        SELECT @OrderID, c.ProductID, c.Quantity, p.Price, p.DiscountPct
+        FROM Cart c
+        JOIN Products p ON c.ProductID = p.ProductID
+        WHERE c.CustomerID = @CustomerID;
+
+        UPDATE i
+        SET i.StockQuantity = i.StockQuantity - c.Quantity
+        FROM Inventory i
+        JOIN Cart c ON i.ProductID = c.ProductID
+        WHERE c.CustomerID = @CustomerID;
+
+        INSERT INTO Payments (OrderID, Amount, Method, Status)
+        VALUES (@OrderID, @Total, @PaymentMethod, 'Pending');
+
+        DELETE FROM Cart WHERE CustomerID = @CustomerID;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE PROCEDURE sp_CustomerLogin
+    @Email NVARCHAR(150)
+AS
+BEGIN
+    SELECT CustomerID, FirstName, LastName, Email, PasswordHash
+    FROM Customers
+    WHERE Email = @Email AND IsActive = 1;
+END;
+GO
+
+CREATE PROCEDURE sp_AdminStats
+AS
+BEGIN
+    SELECT
+        (SELECT COUNT(*) FROM Customers WHERE IsActive = 1)          AS TotalCustomers,
+        (SELECT COUNT(*) FROM Products  WHERE IsActive = 1)          AS TotalProducts,
+        (SELECT COUNT(*) FROM Orders)                                 AS TotalOrders,
+        (SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = 'Completed') AS TotalRevenue,
+        (SELECT COUNT(*) FROM Orders WHERE OrderStatus = 'Pending')  AS PendingOrders,
+        (SELECT COUNT(*) FROM vw_LowStock)                           AS LowStockItems;
+END;
+GO
+
+CREATE PROCEDURE sp_RegisterCustomer
+    @FirstName    NVARCHAR(100),
+    @LastName     NVARCHAR(100),
+    @Email        NVARCHAR(150),
+    @PasswordHash NVARCHAR(255),
+    @Phone        NVARCHAR(20),
+    @Address      NVARCHAR(300),
+    @City         NVARCHAR(100)
+AS
+BEGIN
+    IF EXISTS (SELECT 1 FROM Customers WHERE Email = @Email)
+    BEGIN
+        SELECT -1 AS Result, 'Email already registered' AS Message;
+        RETURN;
+    END
+    INSERT INTO Customers (FirstName, LastName, Email, PasswordHash, Phone, Address, City)
+    VALUES (@FirstName, @LastName, @Email, @PasswordHash, @Phone, @Address, @City);
+    SELECT SCOPE_IDENTITY() AS Result, 'Registration successful' AS Message;
+END;
+GO
+
+-- ============================================================
+-- TRIGGERS
+-- ============================================================
+
+CREATE TRIGGER trg_UpdateOrderTotal
+ON OrderDetails
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    UPDATE Orders
+    SET TotalAmount = (
+        SELECT SUM(Quantity * UnitPrice * (1 - Discount / 100))
+        FROM OrderDetails
+        WHERE OrderID = inserted.OrderID
+    )
+    FROM Orders
+    JOIN inserted ON Orders.OrderID = inserted.OrderID;
+END;
+GO
+
+CREATE TRIGGER trg_InventoryAudit
+ON Inventory
+AFTER UPDATE
+AS
+BEGIN
+    INSERT INTO InventoryLog (ProductID, OldQty, NewQty)
+    SELECT d.ProductID, d.StockQuantity, i.StockQuantity
+    FROM deleted  d
+    JOIN inserted i ON d.InventoryID = i.InventoryID;
+END;
+GO
+
+-- ============================================================
+-- FUNCTIONS
+-- ============================================================
+
+CREATE FUNCTION fn_GetFinalPrice(@ProductID INT)
+RETURNS DECIMAL(10,2)
+AS
+BEGIN
+    DECLARE @FinalPrice DECIMAL(10,2);
+    SELECT @FinalPrice = Price - (Price * DiscountPct / 100)
+    FROM Products WHERE ProductID = @ProductID;
+    RETURN @FinalPrice;
+END;
+GO
+
+CREATE FUNCTION fn_GetAvgRating(@ProductID INT)
+RETURNS DECIMAL(3,1)
+AS
+BEGIN
+    DECLARE @Avg DECIMAL(3,1);
+    SELECT @Avg = AVG(CAST(Rating AS DECIMAL(3,1)))
+    FROM Reviews WHERE ProductID = @ProductID;
+    RETURN ISNULL(@Avg, 0);
+END;
+GO
+
+-- ============================================================
+-- VERIFY EVERYTHING WORKED
+-- ============================================================
+SELECT 'Tables'     AS Type, COUNT(*) AS Count FROM INFORMATION_SCHEMA.TABLES    WHERE TABLE_TYPE = 'BASE TABLE'
+UNION ALL
+SELECT 'Views',              COUNT(*)           FROM INFORMATION_SCHEMA.VIEWS
+UNION ALL
+SELECT 'Stored Procs',       COUNT(*)           FROM INFORMATION_SCHEMA.ROUTINES  WHERE ROUTINE_TYPE = 'PROCEDURE'
+UNION ALL
+SELECT 'Functions',          COUNT(*)           FROM INFORMATION_SCHEMA.ROUTINES  WHERE ROUTINE_TYPE = 'FUNCTION';
+GO
+
+-- Quick data check
+SELECT 'Products in DB:'  AS Info, COUNT(*) AS Count FROM Products
+UNION ALL
+SELECT 'Customers in DB:', COUNT(*) FROM Customers
+UNION ALL
+SELECT 'Orders in DB:',    COUNT(*) FROM Orders;
+GO
