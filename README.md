@@ -1,7 +1,7 @@
 # NEXUS---An-E-Commerce-Website-with-MSSQL-Database-Backend-
 A complete online shopping system with product browsing, cart management, live order placement, admin dashboard, and inventory control —all connected to a real database.  Microsoft SQL Server  13 tables, 5 views, 7 stored procedures, 2 triggers, 2 functions PHP  live backend connection with transaction-based order processing HTML5, CSS3, JavaScript
 # NEXUS E-Commerce Platform
-## Database Systems Project — Group 10
+## Database Systems Project
 ### University Final Submission Report
 
 ---
