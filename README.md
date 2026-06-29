@@ -318,4 +318,4 @@ The use of stored procedures encapsulates business logic at the database level, 
 
 ---
 
-*Group 10 · Database Systems · University Project · 2024*
+*Group 10 · Database Systems · University Project · 2026*
